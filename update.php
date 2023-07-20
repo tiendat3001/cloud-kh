@@ -29,7 +29,16 @@
     $get_categories = "SELECT * FROM category";
     $categories = mysqli_query($conn, $get_categories);
 
+    $categoriesArr = [];
+    if ($categories) {
+      while ($row = mysqli_fetch_assoc($categories)) {
+        $categoriesArr[$row['id']] = $row['cate_name'];
+      }
+    }
+
+
     $currentURL = $_SERVER['REQUEST_URI'];
+    $baseURL = dirname(substr($currentURL, 0, strrpos($currentURL, '/')));
 
     // Split the URL by slashes (/)
     $parts = explode('/', $currentURL);
@@ -53,10 +62,17 @@
       $price = $_POST["price"];
       $category = $_POST["category"];
   
+      // Handle thumbnail file upload
+      $thumbnail = $_FILES["thumbnail"];
+      $thumbnailName = $thumbnail["name"];
+      $thumbnailTmpName = $thumbnail["tmp_name"];
+      $thumbnailPath = "assets/" . $thumbnailName;
+      move_uploaded_file($thumbnailTmpName, $thumbnailPath);
+  
       //  Process from submission
-      $sql = "UPDATE products SET prod_name = ?, price = ?, category_id = ? WHERE id = ?";
+      $sql = "UPDATE products SET prod_name = ?, price = ?, category_id = ?, thumbnail=? WHERE id = ?";
       $stmt = $conn->prepare($sql);
-      $stmt->bind_param("sdis", $title, $price, $category, $id);
+      $stmt->bind_param("sdisi", $title, $price, $category, $thumbnailPath, $id);
   
       // Execute the prepared statement
       if ($stmt->execute()) {
@@ -73,7 +89,7 @@
     <!--Navbar-->
     <nav class="navbar navbar-expand-lg bg-body-tertiary mt-3">
         <div class="container-fluid">
-          <a class="navbar-brand" href="index.php">ATN Toys</a>
+          <a class="navbar-brand" href="../index.php">ATN Toys</a>
           <button
             class="navbar-toggler"
             type="button"
@@ -88,33 +104,37 @@
           <div class="collapse navbar-collapse" id="navbarSupportedContent">
             <ul class="navbar-nav me-auto mb-2 mb-lg-0">
               <li class="nav-item">
-                <a class="nav-link active" aria-current="page" href="index.php">Home</a>
+                <a class="nav-link active" aria-current="page" href="../index.php">Home</a>
               </li>
               <li class="nav-item">
                 <a class="nav-link" href="#">Link</a>
               </li>
               <li class="nav-item">
-                <a class="nav-link" href="create.php">New</a>
+                <a class="nav-link" href="../create.php">New</a>
               </li>
             </ul>
           </div>
         </div>
     </nav>
-    <!--Create product Form-->
+    <!--Update product Form-->
     <form class="row container mx-auto py-3" method="POST" enctype="multipart/form-data">
         <h1>Update a product</h1>
+        <?php foreach ($currentProduct as $product) { ?>
     <div class="mb-3">
         <label for="prod_name" class="form-label">Product name</label>
-        <input type="text" class="form-control" id="prod_name" placeholder="Input product name">
+        <input type="text" class="form-control" id="prod_name" placeholder="Input product name" name="name"
+        value="<?php echo $product["prod_name"]?>">
       </div>
       <div class="mb-3">
         <label for="prod_price" class="form-label">Price</label>
-        <input type="text" class="form-control" id="prod_price" placeholder="Input Price">
+        <input type="text" class="form-control" id="prod_price" placeholder="Input Price" name="price"
+        value="<?php echo $product["price"]?>">
       </div>
       <div class="mb-3">
         <label for="category" class="form-label">Category</label>
         <select class="form-select" id="category" name="category">
-          <option selected disabled value="">Choose a category</option>
+          <option selected hidden value="<?php echo $product['category_id'] ?>">
+          <?php echo '#' . $categoriesArr[$product['category_id']] ?></option>
           <?php foreach ($categories as $category) { ?>
             <option class="text-dark" value="<?php echo $category["id"] ?>"><?php echo "#" . $category["cate_name"] ?>
             </option>
@@ -123,10 +143,12 @@
       </div>
       <div class="mb-3">
         <label for="prod_image" class="form-label">Product Image</label>
-        <input type="file" class="form-control" id="prod_image">
+        <input type="file" class="form-control" id="prod_img" value="<?php echo $product["thumbnail"] ?>" name="thumbnail">
+        <img src="<?php echo $baseURL . '/' . $product["thumbnail"]; ?>" class="mt-3" alt="preview" width="200" height="200" />
       </div>
+        <?php } ?>
       <div class="mb-3 text-center">
-        <a href="index.php" class="btn btn-outline-secondary">Back to products</a>
+        <a href="../index.php" class="btn btn-outline-secondary">Back to products</a>
         <button class="btn btn-success">Update</button>
       </div>
       </form>
